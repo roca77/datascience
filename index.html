@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+        <style>
+                .bar rect {
+                  fill: steelblue;
+                }
+                
+                .bar text {
+                  fill: #fff;
+                  font: 10px sans-serif;
+                }   
+
+html, body {
+            font: 10px sans-serif;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        
+        div {
+            width: 50%;
+            height: 50%;
+            float: left;
+        }
+        
+        #top_left {
+            background: #DDD;
+        }
+        
+        #top_right {
+            background: #AAA;
+        }
+        
+        #Bottom_left {
+            background: #777;
+        }
+        
+        #Bottom_right {
+            background: #444;
+
+        .axis path,
+        .axis line {
+                    fill: none;
+                    stroke: #000;
+                    shape-rendering: crispEdges;
+                    }
+
+        .x.axis path {
+                    display: none;
+                    }
+</style>
+</head>
+
+<body>
+<script src="//d3js.org/d3.v4.min.js"></script>
+
+    <div id="svg1"></div>
+    <div id="svg2"></div>
+
+<script>
+// ------------------------------------------------------------------
+// (TOP LEFT VISUALIZATION)
+// ------------------------------------------------------------------
+
+        var parseDate = d3.timeParse("%m/%d/%Y %H:%M:%S %p"),
+            formatCount = d3.format(",.0f");
+        
+        var margin = {top: 20, right: 30, bottom: 30, left: 30},
+            width = 600 - margin.left - margin.right,
+            height = 330 - margin.top - margin.bottom;
+        
+        var x = d3.scaleTime()
+            .domain([new Date(2015, 0, 1), new Date(2016, 0, 1)])
+            .rangeRound([0, width]);
+        
+        var y = d3.scaleLinear()
+            .range([height, 0]);
+        
+        var histogram = d3.histogram()
+            .value(function(d) { return d.date; })
+            .domain(x.domain())
+            .thresholds(x.ticks(d3.timeWeek));
+        
+        var svg = d3.select("#svg1").append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+            .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        
+        svg.append("g")
+            .attr("class", "axis axis--x")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
+       
+        //--- load the data
+        d3.csv("data/accidents.csv", type, function(error, data) {
+          if (error) throw error;
+        
+          var bins = histogram(data);
+        
+          y.domain([0, d3.max(bins, function(d) { return d.length; })]);
+        
+          var bar = svg.selectAll(".bar")
+              .data(bins)
+            .enter().append("g")
+              .attr("class", "bar")
+              .attr("transform", function(d) { return "translate(" + x(d.x0) + "," + y(d.length) + ")"; });
+        
+          bar.append("rect")
+              .attr("x", 1)
+              .attr("width", function(d) { return x(d.x1) - x(d.x0) - 1; })
+              .attr("height", function(d) { return height - y(d.length); });
+        
+        // add textbox 
+          bar.append("text")
+              .attr("dy", ".75em")
+              .attr("y", 6)
+              .attr("x", function(d) { return (x(d.x1) - x(d.x0)) / 2; })
+              .attr("text-anchor", "middle")
+              .text(function(d) { return formatCount(d.length); });
+        });
+        
+        function type(d) {
+          d.date = parseDate(d.date);
+          return d;
+        }
+        
+// ------------------------------------------------------------------
+// (TOP RIGHT VISUALIZATION)
+// ------------------------------------------------------------------
+
+        setTimeout(function() {
+
+            var formatComma = d3.format(",")
+            
+            //--- load the data   
+                d3.csv("data/claims_data.csv", type, function(error, data) {
+                    if (error) throw error;
+ 
+                    var Count_ = d3.nest()
+                        .key(function(d) {
+                            return d.CAR_AGE;
+                        })
+                        .rollup(function(v) {
+                            return v.length;
+                        })
+                        .entries(data);
+
+                    //sort bars based on values
+                    Count_ = Count_.sort(function(a, b) {
+                        return d3.ascending(a.value, b.value);
+                    })
+                    var newCount_ = Count_.filter(function(x) {
+                        return x.value >= 5
+                    });
+
+                    //set up svg using margin conventions 
+
+                    var c10 = d3.scaleLinear().domain([1, newCount_.length])
+                        .interpolate(d3.interpolateHcl)
+                        .range([d3.rgb("#5E4FA2"), d3.rgb('#E6F598'), d3.rgb('#9E0142')]);
+
+                    var TL_Size = document.getElementById("svg2")
+                    var TL_width = TL_Size.clientWidth - margin.left - margin.right
+                    var TL_height = TL_Size.clientHeight - margin.top - margin.bottom
+
+                    var TL_svg = d3.select("#svg2").append("svg")
+                        .attr("width", TL_width + margin.left + margin.right)
+                        .attr("height", TL_height + margin.top + margin.bottom)
+                        .append("g")
+                        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+                    var x = d3.scaleLinear()
+                        .range([0, TL_width]);
+
+                    var y = d3.scaleBand()
+                        .range([TL_height, 0]).padding(0.1);;
+
+                    x.domain([0, d3.max(newCount_, function(d) {
+                        return d.value;
+                    })]);
+
+                    y.domain(newCount_.map(function(d) {
+                        return d.key;
+                    }));
+
+                    var xAxis = d3.axisBottom(x);
+                    //make y axis to show bar keys
+                    var yAxis = d3.axisLeft(y);
+
+                    var TL_g = TL_svg.append("g")
+                        .attr("class", "y axis")
+                        .call(yAxis)
+
+                    var TL_bars = TL_svg.selectAll(".bar")
+                        .data(newCount_)
+                        .enter()
+                        .append("g")
+
+                    //append rects
+                    TL_bars.append("rect")
+                        .attr("class", "bar")
+                        .attr("y", function(d) {
+                            return y(d.key);
+                        })
+                        .attr("height", y.bandwidth())
+                        .attr("x", 0)
+                        .attr("fill", function(d, i) {
+                            return c10(i);
+                        })
+                        .attr("width", function(d) {
+                            return x(d.value);
+                        });
+
+                    //add a values label to the right of each bar
+                    TL_bars.append("text")
+                        .attr("class", "label")
+                        //y position of the label is halfway down the bar
+                        .attr("y", function(d) {
+                            return y(d.key) + y.bandwidth() / 2 + 4;
+                        })
+                        //x position is 3 pixels to the right of the bar
+                        .attr("x", function(d) {
+                            return x(d.value) + 3;
+                        })
+                        .text(function(d) {
+                            return formatComma(d.value);
+                        });
+                    // add textbox 
+                    TL_svg.append("text")
+                        .attr("x", (TL_width / 2))
+                        .attr("y", 0 - (margin.top / 3))
+                        .attr("text-anchor", "middle")
+                        .style("font-size", "18px")
+                        .style("font-weight","bold")
+                        .style("text-decoration", "underline")
+                        .text("Total Number of Cars per age group ");
+      }); //csv
+        }, 1000); //timeout
+    </script>
+</body>
+
